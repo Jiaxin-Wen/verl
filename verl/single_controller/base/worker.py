@@ -268,8 +268,9 @@ class Worker(WorkerHelper):
                 os.environ.pop("ROCR_VISIBLE_DEVICES", None)
                 rocr_val = None
 
-            cuda_val = os.environ.pop("ROCR_VISIBLE_DEVICES")
-            os.environ["CUDA_VISIBLE_DEVICES"] = cuda_val
+            cuda_val = os.environ.pop("ROCR_VISIBLE_DEVICES", None)
+            if cuda_val is not None:
+                os.environ["CUDA_VISIBLE_DEVICES"] = cuda_val
             rocr_val = None
 
         if is_ray_noset_visible_devices:
