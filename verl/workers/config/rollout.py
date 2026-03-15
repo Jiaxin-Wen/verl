@@ -208,6 +208,9 @@ class RolloutConfig(BaseConfig):
     # Extension point for custom configurations
     custom: Optional[dict] = None
 
+    # Stop strings for generation (e.g., ["</answer>"] for R1-style training)
+    stop_strings: Optional[list[str]] = None
+
     # Checkpoint Engine config for update weights from trainer to rollout
     checkpoint_engine: CheckpointEngineConfig = field(default_factory=CheckpointEngineConfig)
 
