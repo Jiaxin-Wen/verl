@@ -480,6 +480,10 @@ class AgentLoopWorker:
             repetition_penalty=1.0,
             logprobs=config.calculate_log_probs,
         )
+        # Add stop strings if configured (e.g., "</answer>" for R1-style training)
+        stop_strings = config.get("stop_strings", None)
+        if stop_strings:
+            sampling_params["stop"] = stop_strings
 
         # override sampling params for validation
         if batch.meta_info.get("validate", False):
