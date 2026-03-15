@@ -61,6 +61,8 @@ if _VLLM_VERSION > version.parse("0.11.0"):
     if _VLLM_VERSION == version.parse("0.12.0"):
         try:
             from vllm.entrypoints.harmony_utils import get_encoding
+        except ImportError:
+            get_encoding = None
 
     elif _VLLM_VERSION >= version.parse("0.13.0"):
         from vllm.entrypoints.openai.parser.harmony_utils import get_encoding
