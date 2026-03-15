@@ -484,6 +484,9 @@ class AgentLoopWorker:
         stop_strings = config.get("stop_strings", None)
         if stop_strings:
             sampling_params["stop"] = stop_strings
+            if not hasattr(self, "_logged_stop_strings"):
+                logger.warning(f"[AgentLoopWorker] Using stop_strings={stop_strings}")
+                self._logged_stop_strings = True
 
         # override sampling params for validation
         if batch.meta_info.get("validate", False):

@@ -551,6 +551,9 @@ class vLLMHttpServer:
         sampling_params["logprobs"] = 0 if sampling_params.pop("logprobs", False) else None
         sampling_params.setdefault("repetition_penalty", self.config.get("repetition_penalty", 1.0))
         sampling_params = SamplingParams(max_tokens=max_tokens, **sampling_params)
+        if not hasattr(self, "_logged_sampling_params") and sampling_params.stop:
+            logger.info(f"[vLLMHttpServer] SamplingParams.stop={sampling_params.stop}")
+            self._logged_sampling_params = True
         prompt_ids = _qwen2_5_vl_dedup_image_tokens(prompt_ids, self.model_config.processor)
         multi_modal_data = {}
         if image_data is not None:
