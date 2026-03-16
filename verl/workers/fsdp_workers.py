@@ -919,9 +919,20 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
                 log_gpu_memory_usage("After offload actor optimizer during init", logger=logger)
 
         if self._is_actor:
+            # Determine dp_group for micro-batch synchronization across DP ranks
+            dp_group = None
+            if hasattr(self, 'device_mesh') and self.device_mesh is not None:
+                if "dp" in self.device_mesh.mesh_dim_names:
+                    dp_group = self.device_mesh["dp"].get_group()
+                elif "ddp" in self.device_mesh.mesh_dim_names:
+                    dp_group = self.device_mesh["ddp"].get_group()
+            if dp_group is None:
+                import torch.distributed as dist
+                dp_group = dist.group.WORLD
+
             actor_cfg = omega_conf_to_dataclass(self.config.actor)
             self.actor = DataParallelPPOActor(
-                config=actor_cfg, actor_module=self.actor_module_fsdp, actor_optimizer=self.actor_optimizer
+                config=actor_cfg, actor_module=self.actor_module_fsdp, actor_optimizer=self.actor_optimizer, dp_group=dp_group
             )
 
         if self._is_rollout:
@@ -965,7 +976,16 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
                 self.config.ref.use_fused_kernels = use_fused_kernels
                 if use_prefix_grouper:
                     self.config.ref.use_prefix_grouper = use_prefix_grouper
-            self.ref_policy = DataParallelPPOActor(config=self.config.ref, actor_module=self.ref_module_fsdp)
+            ref_dp_group = None
+            if hasattr(self, 'device_mesh') and self.device_mesh is not None:
+                if "dp" in self.device_mesh.mesh_dim_names:
+                    ref_dp_group = self.device_mesh["dp"].get_group()
+                elif "ddp" in self.device_mesh.mesh_dim_names:
+                    ref_dp_group = self.device_mesh["ddp"].get_group()
+            if ref_dp_group is None:
+                import torch.distributed as dist
+                ref_dp_group = dist.group.WORLD
+            self.ref_policy = DataParallelPPOActor(config=self.config.ref, actor_module=self.ref_module_fsdp, dp_group=ref_dp_group)
 
         if self._is_actor:
             self.flops_counter = FlopsCounter(self.actor_model_config)
