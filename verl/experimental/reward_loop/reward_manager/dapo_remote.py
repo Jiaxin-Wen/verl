@@ -30,6 +30,9 @@ class DAPORemoteRewardManager(RemoteRewardManager):
     def __init__(self, config, tokenizer, compute_score, reward_router_address=None, reward_model_tokenizer=None):
         super().__init__(config, tokenizer, compute_score, reward_router_address, reward_model_tokenizer)
 
+        self.num_examine = config.reward.get("reward_kwargs", {}).get("num_examine", 0)
+        self._examine_count = 0
+
         overlong_buffer_cfg = config.reward.get("reward_kwargs", {}).get("overlong_buffer_cfg", None)
         self.overlong_buffer_cfg = overlong_buffer_cfg
         self.max_resp_len = config.reward.get("reward_kwargs", {}).get("max_resp_len", None)
@@ -71,5 +74,25 @@ class DAPORemoteRewardManager(RemoteRewardManager):
             if self.overlong_buffer_cfg.log:
                 reward_extra_info["overlong_reward"] = overlong_reward
                 reward_extra_info["overlong"] = overlong_reward < 0
+
+        # Log sample responses for debugging
+        if self.num_examine > 0 and self._examine_count < self.num_examine:
+            self._examine_count += 1
+            import logging
+            logger = logging.getLogger("dapo_remote")
+            prompt_ids = data_item.batch["prompts"]
+            prompt_length = prompt_ids.shape[-1]
+            valid_prompt_length = data_item.batch["attention_mask"][:prompt_length].sum()
+            valid_prompt_ids = prompt_ids[-valid_prompt_length:]
+            prompt_str = self.tokenizer.decode(valid_prompt_ids, skip_special_tokens=True)
+            response_str = self.tokenizer.decode(response_ids[:valid_response_length], skip_special_tokens=True)
+            ground_truth = data_item.non_tensor_batch["reward_model"]["ground_truth"]
+            logger.warning(
+                f"[examine {self._examine_count}/{self.num_examine}] "
+                f"resp_len={int(valid_response_length)} reward={reward:.3f}\n"
+                f"[prompt] {prompt_str[:200]}\n"
+                f"[response] {response_str[:500]}\n"
+                f"[ground_truth] {ground_truth}"
+            )
 
         return {"reward_score": reward, "reward_extra_info": reward_extra_info}
